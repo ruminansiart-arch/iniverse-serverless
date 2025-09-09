@@ -12,7 +12,7 @@ RUN \
 # Download Pony VAE
 RUN \
     echo "Downloading Pony VAE..." && \
-    curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /pony.vae.pt "https://civitai.com/api/download/models/290640?type=VAE&format=Other" && \
+    curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /pony.vae.pt "https://civitai.com/api/download/models/290640?type=VAE&format=SafeTensor" && \
     echo "VAE downloaded. File size: $(wc -c < /pony.vae.pt) bytes"
 
 # Download Detail Tweaker XL LoRA
