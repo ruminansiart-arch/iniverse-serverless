@@ -27,12 +27,12 @@ RUN \
     wget -q -O /4x-UltraSharp.pth "https://huggingface.co/lokCX/4x-Ultrasharp/resolve/main/4x-UltraSharp.pth?download=true" && \
     echo "Upscaler downloaded: $(wc -c < /4x-UltraSharp.pth) bytes"
 
-# Download ADetailer models
+# Download ADetailer models (fixed URLs)
 RUN \
     echo "Downloading ADetailer models..." && \
     mkdir -p /adetailer_models && \
-    wget -q -O /adetailer_models/face_yolov8n.pt "https://huggingface.co/Bing-su/adetailer/resolve/main/models/face_yolov8n.pt" && \
-    wget -q -O /adetailer_models/hand_yolov8n.pt "https://huggingface.co/Bing-su/adetailer/resolve/main/models/hand_yolov8n.pt" && \
+    wget -q -O /adetailer_models/face_yolov8n.pt "https://github.com/Bing-su/adetailer/releases/download/v0.2.0/face_yolov8n.pt" && \
+    wget -q -O /adetailer_models/hand_yolov8n.pt "https://github.com/Bing-su/adetailer/releases/download/v0.2.0/hand_yolov8n.pt" && \
     echo "ADetailer models downloaded"
 
 # Build image
@@ -46,9 +46,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# Install git and other dependencies (added git to the list)
 RUN apt-get update && \
     apt install -y \
-    fonts-dejavu-core rsync git jq moreutils aria2 wget libgoogle-perftools-dev libtcmalloc-minimal4 procps libgl1 libglib2.0-0 && \
+    git fonts-dejavu-core rsync jq moreutils aria2 wget libgoogle-perftools-dev libtcmalloc-minimal4 procps libgl1 libglib2.0-0 && \
     apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && apt-get clean -y
 
 RUN --mount=type=cache,target=/root/.cache/pip \
