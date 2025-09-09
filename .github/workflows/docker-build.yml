@@ -1,0 +1,41 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Prepare CivitAI API Key (trimmed)
+        run: echo -n "${{ secrets.CIVITAI_API_KEY }}" > civitai.key
+
+      - name: Build Docker image with secret (with debug)
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --progress=plain \
+            --secret id=CIVITAI_API_KEY,src=civitai.key \
+            -t ${{ secrets.DOCKERHUB_REPO }}/${{ secrets.DOCKERHUB_IMG }}:latest . 2>&1 | tee build.log
+          
+          # Check if build failed and show last 20 lines for debugging
+          if [ $? -ne 0 ]; then
+            echo "Build failed! Last 20 lines:"
+            tail -20 build.log
+            exit 1
+          fi
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_REPO }}/${{ secrets.DOCKERHUB_IMG }}:latest
