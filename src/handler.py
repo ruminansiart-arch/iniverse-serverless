@@ -14,21 +14,34 @@ automatic_session.mount('http://', HTTPAdapter(max_retries=retries))
 
 def wait_for_service(url):
     retries = 0
-    while True:
+    max_retries = 30  # 1 minute max wait
+    while retries < max_retries:
         try:
-            requests.get(url, timeout=120)
-            return
+            response = requests.get(url, timeout=30)
+            if response.status_code == 200:
+                print("WebUI service is ready!")
+                return
         except requests.exceptions.RequestException:
-            retries += 1
-            if retries % 15 == 0:
-                print("Service not ready yet. Retrying...")
+            pass
         except Exception as err:
-            print("Error: ", err)
-        time.sleep(0.2)
+            print(f"Error checking service: {err}")
+        
+        retries += 1
+        if retries % 5 == 0:
+            print(f"Service not ready yet ({retries}/{max_retries}). Retrying...")
+        time.sleep(2)
+    
+    print("Service failed to start within timeout period")
+    # Continue anyway - the handler might still work
 
 def call_api(endpoint, payload):
-    response = automatic_session.post(url=f'{LOCAL_URL}/{endpoint}', json=payload, timeout=600)
-    return response.json()
+    try:
+        response = automatic_session.post(url=f'{LOCAL_URL}/{endpoint}', json=payload, timeout=600)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"API call failed: {e}")
+        return {"error": str(e)}
 
 def get_image_size(base64_str):
     try:
@@ -41,15 +54,12 @@ def get_image_size(base64_str):
         print(f"Error getting image dimensions: {e}")
         return (512, 512)
 
-# ===== PERMANENT PROMPTS (INVISIBLE TO USER) =====
-# 1. Universal Base Positive Prompt (UNCHANGED AS REQUESTED)
+# ===== PERMANENT PROMPTS =====
 PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), detailed eyes, perfect human face, symmetrical features, natural skin texture with pores and subtle imperfections, defined cheekbones, balanced jawline, realistic eyes with catchlights and fine eyelashes, natural eyebrows, detailed nose structure, soft lips with micro-wrinkles and moisture, healthy skin tone, subsurface scattering, soft natural lighting, rim light, gender-neutral beauty, hyperrealistic skin details, perfect human hands, natural anatomy, delicate hands, <lora:add-detail-xl:1>"""
 
-# 2. New ADetailer Prompts (Targeted Enhancement)
 ADETAILER_FACE_PROMPT = "perfect human face, symmetrical features, natural skin texture, skin pores, subtle skin imperfections, defined cheekbones, balanced jawline, realistic eyes, detailed eyes, eye catchlights, fine eyelashes, natural eyebrows, detailed nose structure, soft lips, lip moisture, healthy skin tone, subsurface scattering"
 ADETAILER_HAND_PROMPT = "perfect human hands, natural hands, delicate hands, realistic fingers, perfect fingers, anatomical hands, detailed knuckles, subtle skin wrinkles"
 
-# 3. Refined Universal Negative Prompt
 PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, artist name, trademark, logo, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry eyes, disfigured, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, fused fingers, too many fingers, long neck, bad feet, poorly drawn feet, bad toes, unnatural pose, asymmetrical eyes, cross-eyed, unnatural body proportions, disconnected limbs, cloned face, doll-like, plastic, mannequin, airbrushed, (3D render, cartoon, anime, sketch, drawing, illustration, painting, digital art:1.3), duplicate, morbid, mutilated, out of frame"""
 
 def handler(event):
@@ -69,6 +79,8 @@ def handler(event):
             "upscaler_1": "4x-UltraSharp"
         }
         extras_result = call_api('extra-single-image', extras_payload)
+        if "error" in extras_result:
+            return extras_result
         upscaled_image = extras_result['image']
 
         # Stage 2: Img2Img Refine
