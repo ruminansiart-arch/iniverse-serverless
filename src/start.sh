@@ -6,14 +6,17 @@ echo "Starting WebUI API"
 TCMALLOC="$(ldconfig -p | grep -Po "libtcmalloc.so.\d" | head -n 1)"
 export LD_PRELOAD="${TCMALLOC}"
 export PYTHONUNBUFFERED=true
+
+# Add environment variables to prevent issues
+export COMMANDLINE_ARGS="--skip-torch-cuda-test --no-half --precision full --disable-nan-check"
+export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:512"
+
 python /stable-diffusion-webui/webui.py \
   --xformers \
-  --no-half-vae \
   --skip-python-version-check \
   --skip-torch-cuda-test \
   --skip-install \
   --ckpt /stable-diffusion-webui/models/Stable-diffusion/INIVerse_Max.safetensors \
-  --vae-path /stable-diffusion-webui/models/VAE/pony.vae.pt \
   --opt-sdp-attention \
   --disable-safe-unpickle \
   --port 3000 \
@@ -21,7 +24,11 @@ python /stable-diffusion-webui/webui.py \
   --nowebui \
   --skip-version-check \
   --no-hashing \
-  --no-download-sd-model &
+  --no-download-sd-model \
+  --medvram &
+
+# Wait for WebUI to initialize
+sleep 15
 
 echo "Starting RunPod Handler"
 python -u /handler.py
