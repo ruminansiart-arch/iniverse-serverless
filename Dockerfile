@@ -2,17 +2,13 @@
 FROM alpine/git:2.43.0 as download
 RUN apk add --no-cache wget curl
 
-# Download INIVerse_Max (shortened)
+# Download INIVerse_Max
 RUN curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /INIVerse_Max.safetensors "https://civitai.com/api/download/models/1150354?type=Model&format=SafeTensor&size=full&fp=fp16" && \
     echo "INIVerse_Max downloaded: $(wc -c < /INIVerse_Max.safetensors) bytes" 
 
 # Download 4x-Ultrasharp
 RUN wget -q -O /4x-UltraSharp.pth "https://huggingface.co/lokCX/4x-Ultrasharp/resolve/main/4x-UltraSharp.pth?download=true" && \
     echo "4x-UltraSharp downloaded: $(wc -c < /4x-UltraSharp.pth) bytes"
-
-# Download Pony VAE
-RUN curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /pony.vae.pt "https://civitai.com/api/download/models/290640?type=VAE&format=SafeTensor" && \
-    echo "Pony VAE downloaded: $(wc -c < /pony.vae.pt) bytes"
 
 # Download Detail Tweaker XL LoRA
 RUN curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /detail_tweaker_xl.safetensors "https://civitai.com/api/download/models/135867?type=Model&format=SafeTensor" && \
@@ -36,6 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git && \
     cd stable-diffusion-webui && \
     git reset --hard ${A1111_RELEASE} && \
+    pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121 && \
     pip install xformers && \
     pip install -r requirements_versions.txt && \
     python -c "from launch import prepare_environment; prepare_environment()" --skip-torch-cuda-test
@@ -46,23 +43,19 @@ RUN git clone https://github.com/Bing-su/adetailer.git /stable-diffusion-webui/e
 # Create folders and copy models
 RUN mkdir -p ${ROOT}/models/Stable-diffusion
 RUN mkdir -p ${ROOT}/models/ESRGAN
-RUN mkdir -p ${ROOT}/models/VAE
 RUN mkdir -p ${ROOT}/models/Lora
 
 COPY --from=download /INIVerse_Max.safetensors ${ROOT}/models/Stable-diffusion/
 COPY --from=download /4x-UltraSharp.pth ${ROOT}/models/ESRGAN/
-COPY --from=download /pony.vae.pt ${ROOT}/models/VAE/
 COPY --from=download /detail_tweaker_xl.safetensors ${ROOT}/models/Lora/
 
 # Verify models are present
 RUN echo "Model verification:" && \
     ls -la ${ROOT}/models/Stable-diffusion/ && \
     ls -la ${ROOT}/models/ESRGAN/ && \
-    ls -la ${ROOT}/models/VAE/ && \
     ls -la ${ROOT}/models/Lora/ && \
     echo "INIVerse_Max size: $(wc -c < ${ROOT}/models/Stable-diffusion/INIVerse_Max.safetensors) bytes" && \
     echo "4x-UltraSharp size: $(wc -c < ${ROOT}/models/ESRGAN/4x-UltraSharp.pth) bytes" && \
-    echo "Pony VAE size: $(wc -c < ${ROOT}/models/VAE/pony.vae.pt) bytes" && \
     echo "Detail Tweaker XL LoRA size: $(wc -c < ${ROOT}/models/Lora/detail_tweaker_xl.safetensors) bytes"
 
 # Install app dependencies
