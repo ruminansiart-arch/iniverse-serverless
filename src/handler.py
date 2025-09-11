@@ -55,7 +55,7 @@ def get_image_size(base64_str):
         return (512, 512)
 
 # ===== PERMANENT PROMPTS =====
-PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, <lora:add-detail-xl:1>"""
+PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, <lora:add-detail-xl:2>"""
 
 ADETAILER_FACE_PROMPT = "perfect human face, symmetrical features, natural skin texture, skin pores, subtle skin imperfections, defined cheekbones, balanced jawline, realistic eyes, detailed eyes, eye catchlights, fine eyelashes, natural eyebrows, detailed nose structure, soft lips, lip moisture, healthy skin tone, subsurface scattering"
 ADETAILER_HAND_PROMPT = "perfect human hands, natural hands, delicate hands, realistic fingers, perfect fingers, anatomical hands, detailed knuckles, subtle skin wrinkles"
