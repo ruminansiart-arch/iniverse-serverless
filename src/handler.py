@@ -55,13 +55,12 @@ def get_image_size(base64_str):
         return (512, 512)
 
 # ===== PERMANENT PROMPTS =====
-PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, hyperrealistic skin details, natural anatomy, extreme details, enhanced details, <lora:add-detail-xl:2>"""
+PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, subtle skin wrinkles"""
 
-ADETAILER_FACE_PROMPT = "perfect human face, symmetrical features, natural skin texture, skin pores, subtle skin imperfections, defined cheekbones, balanced jawline, realistic eyes, detailed eyes, eye catchlights, fine eyelashes, natural eyebrows, detailed nose structure, soft lips, lip moisture, healthy skin tone, subsurface scattering"
+ADETAILER_FACE_PROMPT = "perfect human face, symmetrical features, natural skin texture, skin pores, subtle skin imperfections, defined cheekbones, balanced jawline, realistic eyes, detailed eyes, eye catchlights, fine eyelashes, natural eyebrows, detailed nose structure, soft lips, lip moisture, healthy skin tone"
 
-PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, artist name, trademark, logo, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry eyes, disfigured, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, fused fingers, too many fingers, long neck, bad feet, poorly drawn feet, bad toes, unnatural pose, asymmetrical eyes, cross-eyed, unnatural body proportions, disconnected limbs, cloned face, doll-like, plastic, mannequin, airbrushed, (3D render, cartoon, anime, sketch, drawing, illustration, painting, digital art:1.3), duplicate, morbid, mutilated"""
-
-def handler(event):
+PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, artist name, trademark, logo, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry eyes, disfigured, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, fused fingers, too many fingers, long neck, bad feet, poorly drawn feet, bad toes, unnatural pose, asymmetrical eyes, cross-eyed, unnatural body proportions, disconnected limbs, cloned face, doll-like, plastic, mannequin, airbrushed, (3D render, cartoon, anime, sketch, drawing, illustration, painting, digital art:1.3), duplicate, morbid, mutilated"""def handler(event):
+   
     job_input = event["input"]
     
     # MODE 3: STANDALONE REFINER
@@ -76,10 +75,11 @@ def handler(event):
 
         # Stage: Img2Img Refine with Highres Fix and ADetailer
         user_prompt = job_input.get("prompt", "")
-        full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}" if user_prompt else PERMANENT_POSITIVE
+        # LoRA moved to full_prompt construction
+        full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>" if user_prompt else f"{PERMANENT_POSITIVE}, <lora:add-detail-xl:2.5>"
         
-        # ADetailer face prompt combines permanent positive + user prompt + face specifics
-        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}"
+        # ADetailer face prompt combines permanent positive + user prompt + face specifics + LoRA
+        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1>" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1>"
 
         i2i_payload = {
             "init_images": [init_image],
@@ -87,15 +87,15 @@ def handler(event):
             "negative_prompt": PERMANENT_NEGATIVE,
             "width": target_width,
             "height": target_height,
-            "cfg_scale": 5,
-            "steps": 50,
-            "denoising_strength": 0.35,
+            "cfg_scale": 9,
+            "steps": 40,
+            "denoising_strength": 0.45,
             "sampler_name": "Euler",
             # Enable Highres Fix for 2K output
             "enable_hr": True,
             "hr_scale": scale_factor,
             "hr_upscaler": "4x-UltraSharp",
-            "hr_second_pass_steps": 20,
+            "hr_second_pass_steps": 40,
             # ADetailer added to refiner mode with combined prompts
             "alwayson_scripts": {
                 "adetailer": {
@@ -121,17 +121,18 @@ def handler(event):
 
     # Build Text2Image payload
     user_prompt = job_input.get("prompt", "")
-    full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}"
+    # LoRA moved to full_prompt construction
+    full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>
     
-    # ADetailer face prompt combines permanent positive + user prompt + face specifics
-    adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}"
+    # ADetailer face prompt combines permanent positive + user prompt + face specifics + LoRA
+    adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1>"
 
     t2i_payload = {
         "prompt": full_prompt,
         "negative_prompt": PERMANENT_NEGATIVE,
         "width": width,
         "height": height,
-        "cfg_scale": 7,
+        "cfg_scale": 9,
         "steps": 30,
         "seed": job_input.get("seed", -1),
         "sampler_name": "Euler",
