@@ -90,7 +90,7 @@ def handler(event):
             "height": target_height,
             "cfg_scale": 9,
             "steps": 40,
-            "denoising_strength": 0.45,
+            "denoising_strength": 0.35,
             "sampler_name": "Euler",
             # Enable Highres Fix for 2K output
             "enable_hr": True,
