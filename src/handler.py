@@ -122,7 +122,7 @@ PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), lowres
     # Build Text2Image payload
     user_prompt = job_input.get("prompt", "")
     # LoRA moved to full_prompt construction
-    full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>
+    full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>"
     
     # ADetailer face prompt combines permanent positive + user prompt + face specifics + LoRA
     adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1>"
