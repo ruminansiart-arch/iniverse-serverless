@@ -80,7 +80,7 @@ def handler(event):
         full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>" if user_prompt else f"{PERMANENT_POSITIVE}, <lora:add-detail-xl:2.5>"
         
         # ADetailer face prompt combines permanent positive + user prompt + face specifics + LoRA
-        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1>" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1>"
+        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:2>" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:2>"
 
         i2i_payload = {
             "init_images": [init_image],
