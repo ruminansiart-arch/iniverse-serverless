@@ -69,26 +69,18 @@ def handler(event):
     if job_input.get("mode") == "refiner":
         init_image = job_input["image"]
         original_width, original_height = get_image_size(init_image)
-        target_width = original_width * 4
-        target_height = original_height * 4
+        
+        # Target ~2K resolution
+        scale_factor = 2
+        target_width = original_width * scale_factor
+        target_height = original_height * scale_factor
 
-        # Stage 1: Upscale using 4x-UltraSharp
-        extras_payload = {
-            "image": init_image,
-            "upscaling_resize": 4,
-            "upscaler_1": "4x-UltraSharp"
-        }
-        extras_result = call_api('extra-single-image', extras_payload)
-        if "error" in extras_result:
-            return extras_result
-        upscaled_image = extras_result['image']
-
-        # Stage 2: Img2Img Refine
+        # Stage: Img2Img Refine with Highres Fix
         user_prompt = job_input.get("prompt", "")
         full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}" if user_prompt else PERMANENT_POSITIVE
 
         i2i_payload = {
-            "init_images": [upscaled_image],
+            "init_images": [init_image],
             "prompt": full_prompt,
             "negative_prompt": PERMANENT_NEGATIVE,
             "width": target_width,
@@ -97,22 +89,11 @@ def handler(event):
             "steps": 50,
             "denoising_strength": 0.35,
             "sampler_name": "Euler",
-            "alwayson_scripts": {
-                "adetailer": {
-                    "args": [
-                        {
-                            "ad_model": "face_yolov8n.pt",
-                            "ad_confidence": 0.3,
-                            "ad_prompt": ADETAILER_FACE_PROMPT
-                        },
-                        {
-                            "ad_model": "hand_yolov8n.pt",
-                            "ad_confidence": 0.3,
-                            "ad_prompt": ADETAILER_HAND_PROMPT
-                        }
-                    ]
-                }
-            }
+            # Enable Highres Fix for 2K output
+            "enable_hr": True,
+            "hr_scale": scale_factor,
+            "hr_upscaler": "4x-UltraSharp",
+            "hr_second_pass_steps": 20,
         }
         return call_api('img2img', i2i_payload)
 
