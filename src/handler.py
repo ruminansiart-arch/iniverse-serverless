@@ -55,10 +55,9 @@ def get_image_size(base64_str):
         return (512, 512)
 
 # ===== PERMANENT PROMPTS =====
-PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, <lora:add-detail-xl:2>"""
+PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, hyperrealistic skin details, natural anatomy, extreme details, enhanced details, <lora:add-detail-xl:2>"""
 
 ADETAILER_FACE_PROMPT = "perfect human face, symmetrical features, natural skin texture, skin pores, subtle skin imperfections, defined cheekbones, balanced jawline, realistic eyes, detailed eyes, eye catchlights, fine eyelashes, natural eyebrows, detailed nose structure, soft lips, lip moisture, healthy skin tone, subsurface scattering"
-ADETAILER_HAND_PROMPT = "perfect human hands, natural hands, delicate hands, realistic fingers, perfect fingers, anatomical hands, detailed knuckles, subtle skin wrinkles"
 
 PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, artist name, trademark, logo, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry eyes, disfigured, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, fused fingers, too many fingers, long neck, bad feet, poorly drawn feet, bad toes, unnatural pose, asymmetrical eyes, cross-eyed, unnatural body proportions, disconnected limbs, cloned face, doll-like, plastic, mannequin, airbrushed, (3D render, cartoon, anime, sketch, drawing, illustration, painting, digital art:1.3), duplicate, morbid, mutilated"""
 
@@ -75,9 +74,12 @@ def handler(event):
         target_width = original_width * scale_factor
         target_height = original_height * scale_factor
 
-        # Stage: Img2Img Refine with Highres Fix
+        # Stage: Img2Img Refine with Highres Fix and ADetailer
         user_prompt = job_input.get("prompt", "")
         full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}" if user_prompt else PERMANENT_POSITIVE
+        
+        # ADetailer face prompt combines permanent positive + user prompt + face specifics
+        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}"
 
         i2i_payload = {
             "init_images": [init_image],
@@ -94,6 +96,18 @@ def handler(event):
             "hr_scale": scale_factor,
             "hr_upscaler": "4x-UltraSharp",
             "hr_second_pass_steps": 20,
+            # ADetailer added to refiner mode with combined prompts
+            "alwayson_scripts": {
+                "adetailer": {
+                    "args": [
+                        {
+                            "ad_model": "face_yolov8n.pt",
+                            "ad_confidence": 0.3,
+                            "ad_prompt": adetailer_face_prompt
+                        }
+                    ]
+                }
+            }
         }
         return call_api('img2img', i2i_payload)
 
@@ -108,6 +122,9 @@ def handler(event):
     # Build Text2Image payload
     user_prompt = job_input.get("prompt", "")
     full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}"
+    
+    # ADetailer face prompt combines permanent positive + user prompt + face specifics
+    adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}"
 
     t2i_payload = {
         "prompt": full_prompt,
@@ -118,18 +135,14 @@ def handler(event):
         "steps": 30,
         "seed": job_input.get("seed", -1),
         "sampler_name": "Euler",
+        # ADetailer with combined prompts
         "alwayson_scripts": {
             "adetailer": {
                 "args": [
                     {
                         "ad_model": "face_yolov8n.pt",
                         "ad_confidence": 0.3,
-                        "ad_prompt": ADETAILER_FACE_PROMPT
-                    },
-                    {
-                        "ad_model": "hand_yolov8n.pt",
-                        "ad_confidence": 0.3,
-                        "ad_prompt": ADETAILER_HAND_PROMPT
+                        "ad_prompt": adetailer_face_prompt
                     }
                 ]
             }
