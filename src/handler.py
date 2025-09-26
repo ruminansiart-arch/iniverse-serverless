@@ -1,6 +1,9 @@
 import time
 import runpod
 import requests
+import base64
+from PIL import Image
+from io import BytesIO
 from requests.adapters import HTTPAdapter, Retry
 
 LOCAL_URL = "http://127.0.0.1:3000/sdapi/v1"
@@ -11,7 +14,7 @@ automatic_session.mount('http://', HTTPAdapter(max_retries=retries))
 
 def wait_for_service(url):
     retries = 0
-    max_retries = 30
+    max_retries = 30  # 1 minute max wait
     while retries < max_retries:
         try:
             response = requests.get(url, timeout=30)
@@ -22,11 +25,14 @@ def wait_for_service(url):
             pass
         except Exception as err:
             print(f"Error checking service: {err}")
+        
         retries += 1
         if retries % 5 == 0:
             print(f"Service not ready yet ({retries}/{max_retries}). Retrying...")
         time.sleep(2)
+    
     print("Service failed to start within timeout period")
+    # Continue anyway - the handler might still work
 
 def call_api(endpoint, payload):
     try:
@@ -36,6 +42,17 @@ def call_api(endpoint, payload):
     except Exception as e:
         print(f"API call failed: {e}")
         return {"error": str(e)}
+
+def get_image_size(base64_str):
+    try:
+        if "," in base64_str:
+            base64_str = base64_str.split(",", 1)[1]
+        image_data = base64.b64decode(base64_str)
+        image = Image.open(BytesIO(image_data))
+        return image.size
+    except Exception as e:
+        print(f"Error getting image dimensions: {e}")
+        return (512, 512)
 
 # ===== PERMANENT PROMPTS =====
 PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, subtle skin wrinkles"""
