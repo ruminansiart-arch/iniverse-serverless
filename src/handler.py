@@ -55,33 +55,32 @@ def get_image_size(base64_str):
         return (512, 512)
 
 # ===== PERMANENT PROMPTS =====
-PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, subtle skin wrinkles"""
+PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, natural anatomy, hyper realistic skin texture"""
 
-ADETAILER_FACE_PROMPT = "symmetrical features, natural skin pores, detailed eyes, big cute eyes, fine eyelashes, detailed nose structure, soft lips, lip moisture, healthy skin tone"
+ADETAILER_FACE_PROMPT = "hyper realistic skin texture, symmetrical features, natural skin pores, detailed eyes"
 
 PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), destroyed nails, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, artist name, trademark, logo, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry eyes, disfigured, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, fused fingers, too many fingers, long neck, bad feet, poorly drawn feet, bad toes, unnatural pose, asymmetrical eyes, cross-eyed, unnatural body proportions, disconnected limbs, cloned face, doll-like, plastic, mannequin, airbrushed, duplicate, morbid, mutilated"""
 
 def handler(event):
     job_input = event["input"]
     
-    # MODE 3: STANDALONE REFINER → FIXED TO ~2K OUTPUT
+    # MODE 3: STANDALONE REFINER
     if job_input.get("mode") == "refiner":
         init_image = job_input["image"]
         original_width, original_height = get_image_size(init_image)
+        
+        # Target ~2K resolution
+        scale_factor = 2
+        target_width = original_width * scale_factor
+        target_height = original_height * scale_factor
 
-        # Target ~2K: 2048 on the LONGER side, preserve aspect ratio
-        MAX_LONG_SIDE = 2048
-        scale = MAX_LONG_SIDE / max(original_width, original_height)
-        target_width = int(original_width * scale)
-        target_height = int(original_height * scale)
-
-        # Ensure dimensions are divisible by 8 (required by SD)
-        target_width = (target_width // 8) * 8
-        target_height = (target_height // 8) * 8
-
+        # Stage: Img2Img Refine with Highres Fix and ADetailer
         user_prompt = job_input.get("prompt", "")
+        # LoRA moved to full_prompt construction
         full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>" if user_prompt else f"{PERMANENT_POSITIVE}, <lora:add-detail-xl:2.5>"
-        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:2>" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:2>"
+        
+        # ADetailer face prompt combines permanent positive + user prompt + face specifics + LoRA
+        adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1.5>" if user_prompt else f"{PERMANENT_POSITIVE}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:2>"
 
         i2i_payload = {
             "init_images": [init_image],
@@ -90,19 +89,21 @@ def handler(event):
             "width": target_width,
             "height": target_height,
             "cfg_scale": 9,
-            "steps": 40,
-            "denoising_strength": 0.35,  # ✅ MUST be a float, never None
+            "steps": 50,
+            "denoising_strength": 0.3,
             "sampler_name": "Euler",
+            # Enable Highres Fix for 2K output
             "enable_hr": True,
-            "hr_scale": 1.0,  # No additional upscale beyond target
+            "hr_scale": scale_factor,
             "hr_upscaler": "4x-UltraSharp",
-            "hr_second_pass_steps": 40,
+            "hr_second_pass_steps": 50,
+            # ADetailer added to refiner mode with combined prompts
             "alwayson_scripts": {
                 "adetailer": {
                     "args": [
                         {
                             "ad_model": "face_yolov8n.pt",
-                            "ad_confidence": 0.3,
+                            "ad_confidence": 0.25,
                             "ad_prompt": adetailer_face_prompt
                         }
                     ]
@@ -111,30 +112,32 @@ def handler(event):
         }
         return call_api('img2img', i2i_payload)
 
-    # MODE 1 & 2: PORTRAIT or LANDSCAPE → NO HR FIX
+    # MODE 1 & 2: PORTRAIT or LANDSCAPE
     mode = job_input.get("mode")
     if mode not in ["portrait", "landscape"]:
         return {"error": "Invalid mode. Use 'portrait', 'landscape', or 'refiner'."}
 
-    # Base resolution (no upscaling here)
-    base_width, base_height = (1024, 1536) if mode == "portrait" else (1536, 1024)
+    # Set dimensions based on mode
+    width, height = (512, 768) if mode == "portrait" else (768, 512)
 
+    # Build Text2Image payload
     user_prompt = job_input.get("prompt", "")
-    full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.0>"
+    # LoRA moved to full_prompt construction
+    full_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, <lora:add-detail-xl:2.5>"
+    
+    # ADetailer face prompt combines permanent positive + user prompt + face specifics + LoRA
     adetailer_face_prompt = f"{PERMANENT_POSITIVE}, {user_prompt}, {ADETAILER_FACE_PROMPT}, <lora:add-detail-xl:1.5>"
 
     t2i_payload = {
         "prompt": full_prompt,
         "negative_prompt": PERMANENT_NEGATIVE,
-        "width": base_width,
-        "height": base_height,
+        "width": width,
+        "height": height,
         "cfg_scale": 9,
-        "steps": 40,
+        "steps": 50,
         "seed": job_input.get("seed", -1),
         "sampler_name": "Euler",
-        # ✅ DISABLE High-Res Fix to avoid denoising_strength = None bug
-        "enable_hr": False,
-        # Remove all HR-related fields
+        # ADetailer with combined prompts
         "alwayson_scripts": {
             "adetailer": {
                 "args": [
@@ -148,8 +151,9 @@ def handler(event):
         }
     }
 
+    # Execute Text2Image
     return call_api('txt2img', t2i_payload)
-    
+
 if __name__ == "__main__":
     wait_for_service(url=f'{LOCAL_URL}/sd-models')
     print("WebUI API Service is ready. Starting RunPod Serverless...")
