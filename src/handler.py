@@ -14,22 +14,25 @@ automatic_session.mount('http://', HTTPAdapter(max_retries=retries))
 
 def wait_for_service(url):
     retries = 0
-    max_retries = 30
+    max_retries = 30  # 1 minute max wait
     while retries < max_retries:
         try:
             response = requests.get(url, timeout=30)
             if response.status_code == 200:
-                print("WebUI API is ready!")
+                print("WebUI service is ready!")
                 return
         except requests.exceptions.RequestException:
             pass
         except Exception as err:
             print(f"Error checking service: {err}")
+        
         retries += 1
         if retries % 5 == 0:
             print(f"Service not ready yet ({retries}/{max_retries}). Retrying...")
         time.sleep(2)
+    
     print("Service failed to start within timeout period")
+    # Continue anyway - the handler might still work
 
 def call_api(endpoint, payload):
     try:
@@ -53,7 +56,9 @@ def get_image_size(base64_str):
 
 # ===== PERMANENT PROMPTS =====
 PERMANENT_POSITIVE = """(score_9, score_8_up, score_7_up), subsurface scattering, soft natural lighting, rim light, hyperrealistic skin details, natural anatomy, subtle skin wrinkles"""
+
 ADETAILER_FACE_PROMPT = "symmetrical features, natural skin pores, detailed eyes, big cute eyes, fine eyelashes, detailed nose structure, soft lips, lip moisture, healthy skin tone"
+
 PERMANENT_NEGATIVE = """(worst quality, low quality, normal quality:1.4), destroyed nails, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, artist name, trademark, logo, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, blurry eyes, disfigured, extra limbs, gross proportions, malformed limbs, missing arms, missing legs, fused fingers, too many fingers, long neck, bad feet, poorly drawn feet, bad toes, unnatural pose, asymmetrical eyes, cross-eyed, unnatural body proportions, disconnected limbs, cloned face, doll-like, plastic, mannequin, airbrushed, duplicate, morbid, mutilated"""
 
 def handler(event):
@@ -106,11 +111,12 @@ def handler(event):
         }
         return call_api('img2img', i2i_payload)
 
-    # MODE 1 & 2: PORTRAIT or LANDSCAPE
+    # MODE 1 & 2: PORTRAIT or LANDSCAPE → NO HR FIX
     mode = job_input.get("mode")
     if mode not in ["portrait", "landscape"]:
         return {"error": "Invalid mode. Use 'portrait', 'landscape', or 'refiner'."}
 
+    # Base resolution (no upscaling here)
     base_width, base_height = (1024, 1536) if mode == "portrait" else (1536, 1024)
 
     user_prompt = job_input.get("prompt", "")
@@ -126,10 +132,9 @@ def handler(event):
         "steps": 40,
         "seed": job_input.get("seed", -1),
         "sampler_name": "Euler",
-        "enable_hr": True,
-        "hr_scale": 2.0,
-        "hr_upscaler": "4x-UltraSharp",
-        "hr_second_pass_steps": 30,
+        # ✅ DISABLE High-Res Fix to avoid denoising_strength = None bug
+        "enable_hr": False,
+        # Remove all HR-related fields
         "alwayson_scripts": {
             "adetailer": {
                 "args": [
@@ -144,7 +149,7 @@ def handler(event):
     }
 
     return call_api('txt2img', t2i_payload)
-
+    
 if __name__ == "__main__":
     wait_for_service(url=f'{LOCAL_URL}/sd-models')
     print("WebUI API Service is ready. Starting RunPod Serverless...")
