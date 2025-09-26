@@ -51,7 +51,7 @@ def handler(event):
     if mode not in ["portrait", "landscape"]:
         return {"error": "Invalid mode. Use 'portrait' or 'landscape' only."}
 
-    # Set high-res dimensions
+    # Set base and target dimensions
     if mode == "portrait":
         base_w, base_h = 512, 768
         target_w, target_h = 1024, 1536
@@ -75,7 +75,9 @@ def handler(event):
         "seed": job_input.get("seed", -1),
         "sampler_name": "DPM++ 2M Karras",
         "enable_hr": True,
-        "hr_scale": 2.0,
+        # ✅ Use hr_resize instead of hr_scale
+        "hr_resize_x": target_w,
+        "hr_resize_y": target_h,
         "hr_upscaler": "4x-UltraSharp",
         "hr_second_pass_steps": 20,
         "denoising_strength": 0.35,
