@@ -27,8 +27,27 @@ python /stable-diffusion-webui/webui.py \
   --no-download-sd-model \
   --medvram &
 
-# Wait for WebUI to initialize
-sleep 15
+WEBUI_PID=$!
+
+# Wait for WebUI to initialize (up to 60s)
+echo "Waiting for WebUI to start..."
+for i in $(seq 1 30); do
+  if curl -s http://127.0.0.1:3000/sdapi/v1/sd-models > /dev/null 2>&1; then
+    echo "WebUI is ready!"
+    break
+  fi
+  if ! kill -0 $WEBUI_PID 2>/dev/null; then
+    echo "ERROR: WebUI process died during startup"
+    exit 1
+  fi
+  sleep 2
+done
+
+# Final check
+if ! curl -s http://127.0.0.1:3000/sdapi/v1/sd-models > /dev/null 2>&1; then
+  echo "ERROR: WebUI failed to start within timeout"
+  exit 1
+fi
 
 echo "Starting RunPod Handler"
 python -u /handler.py

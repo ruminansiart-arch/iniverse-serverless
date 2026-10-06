@@ -2,16 +2,20 @@
 FROM alpine/git:2.43.0 as download
 RUN apk add --no-cache wget curl
 
-# Download INIVerse_Max
-RUN curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /INIVerse_Max.safetensors "https://civitai.com/api/download/models/1150354?type=Model&format=SafeTensor&size=full&fp=fp16" && \
-    echo "INIVerse_Max downloaded: $(wc -c < /INIVerse_Max.safetensors) bytes" 
+# Download INIVerse_Max (CivitAI token passed as BuildKit secret)
+RUN --mount=type=secret,id=CIVITAI_API_KEY \
+    CIVITAI_KEY=$(cat /run/secrets/CIVITAI_API_KEY) && \
+    curl -L -H "Authorization: Bearer $CIVITAI_KEY" -o /INIVerse_Max.safetensors "https://civitai.com/api/download/models/1150354?type=Model&format=SafeTensor&size=full&fp=fp16" && \
+    echo "INIVerse_Max downloaded: $(wc -c < /INIVerse_Max.safetensors) bytes"
 
 # Download 4x-Ultrasharp
 RUN wget -q -O /4x-UltraSharp.pth "https://huggingface.co/lokCX/4x-Ultrasharp/resolve/main/4x-UltraSharp.pth?download=true" && \
     echo "4x-UltraSharp downloaded: $(wc -c < /4x-UltraSharp.pth) bytes"
 
-# Download Detail Tweaker XL LoRA
-RUN curl -L -H "Authorization: Bearer 71986aa96b44dfb5c0d1fcdeebde7a73" -o /detail_tweaker_xl.safetensors "https://civitai.com/api/download/models/135867?type=Model&format=SafeTensor" && \
+# Download Detail Tweaker XL LoRA (CivitAI token passed as BuildKit secret)
+RUN --mount=type=secret,id=CIVITAI_API_KEY \
+    CIVITAI_KEY=$(cat /run/secrets/CIVITAI_API_KEY) && \
+    curl -L -H "Authorization: Bearer $CIVITAI_KEY" -o /detail_tweaker_xl.safetensors "https://civitai.com/api/download/models/135867?type=Model&format=SafeTensor" && \
     echo "Detail Tweaker XL LoRA downloaded: $(wc -c < /detail_tweaker_xl.safetensors) bytes"
 
 # Build image

@@ -90,8 +90,9 @@ def handler(event):
             "height": target_height,
             "cfg_scale": 9,
             "steps": 50,
-            "denoising_strength": 0.3,
+            "denoising_strength": 0.35,
             "sampler_name": "Euler",
+            "seed": job_input.get("seed", -1),
             # Enable Highres Fix for 2K output
             "enable_hr": True,
             "hr_scale": scale_factor,

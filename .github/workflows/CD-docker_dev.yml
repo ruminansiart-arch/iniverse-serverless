@@ -33,3 +33,5 @@ jobs:
         with:
           push: true
           tags: ${{ secrets.DOCKERHUB_REPO }}/${{ secrets.DOCKERHUB_IMG }}:dev
+          secrets: |
+            CIVITAI_API_KEY=${{ secrets.CIVITAI_API_KEY }}
